@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adaptive-attack-protection-system"
+version = "0.2.0.dev0"
+description = "PACE: Plan, Agree, Confirm, Execute — control-plane defense for LLM agents under adaptive attack."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Taras Lysun" }]
+dependencies = [
+  "python-dotenv>=1.0",
+  "requests>=2.31",
+  "openai>=1.40",
+  "anthropic>=0.34",
+  "litellm>=1.40",
+  "ollama>=0.3",
+  "numpy>=1.26",
+  "scipy>=1.11",
+  "scikit-learn>=1.3",
+  "sentence-transformers>=2.7",
+  "datasets>=2.14",
+  "pyyaml>=6.0",
+  "tqdm>=4.66",
+  "pydantic>=2.6",
+]
+
+[project.optional-dependencies]
+langchain = [
+  "langchain>=0.3",
+  "langchain-core>=0.3",
+  "langchain-openai>=0.2",
+  "langchain-anthropic>=0.2",
+  "langchain-ollama>=0.2",
+  "langchain-community>=0.3",
+]
+nli = ["transformers>=4.40", "torch>=2.2"]
+agentdojo = ["agentdojo>=0.1"]
+notebooks = ["jupyter>=1", "matplotlib>=3.8", "pandas>=2.2", "nbconvert>=7"]
+grpo = [
+  "transformers>=4.40",
+  "accelerate>=0.30",
+  "peft>=0.11",
+  "trl>=0.9",
+  "datasets>=2.14",
+  "bitsandbytes>=0.43; sys_platform != 'darwin'",
+]
+guards = [
+  "transformers>=4.40",
+  "huggingface-hub>=0.24",
+]
+multimodal = [
+  "qdrant-client>=1.10",
+  "transformers>=4.40",
+  "torch>=2.2",
+  "pillow>=10.0",
+  "sentence-transformers>=2.7",
+]
+deepagent = [
+  "adaptive-attack-protection-system[langchain,multimodal]",
+  "beautifulsoup4>=4.12",
+]
+all = [
+  "adaptive-attack-protection-system[langchain,nli,agentdojo,notebooks,multimodal,deepagent]",
+]
+
+[project.scripts]
+aaps = "aaps.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["aaps*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "ollama: requires Ollama running locally; opt-in",
+  "services: requires docker services (qdrant/sandbox/litellm); opt-in",
+  "remote: requires paid API keys; opt-in via RUN_REMOTE_E2E=1",
+  "grpo: requires [grpo] extra; loads a tiny model and runs real training",
+  "notebooks: opt-in; runs every notebook headlessly via nbconvert",
+]
+addopts = "-m 'not ollama and not services and not remote and not grpo and not notebooks'"
