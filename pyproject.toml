@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adaptive-attack-protection-system"
+version = "0.1.0"
+description = "PACE: Plan, Agree, Confirm, Execute — control-plane defense for LLM agents under adaptive attack."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Taras Lysun" }]
+dependencies = [
+  "python-dotenv>=1.0",
+  "requests>=2.31",
+  "openai>=1.40",
+  "numpy>=1.26",
+  "scikit-learn>=1.3",
+  "sentence-transformers>=2.7",
+  "tqdm>=4.66",
+  "pydantic>=2.6",
+]
+
+[project.optional-dependencies]
+langchain = [
+  "langchain>=0.3",
+  "langchain-core>=0.3",
+  "langchain-openai>=0.2",
+  "langchain-anthropic>=0.2",
+  "langchain-ollama>=0.2",
+  "langchain-community>=0.3",
+]
+nli = ["transformers>=4.40", "torch>=2.2"]
+agentdojo = ["agentdojo>=0.1"]
+notebooks = ["jupyter>=1", "matplotlib>=3.8", "pandas>=2.2"]
+multimodal = [
+  "qdrant-client>=1.10",
+  "transformers>=4.40",
+  "torch>=2.2",
+  "pillow>=10.0",
+  "sentence-transformers>=2.7",
+]
+deepagent = [
+  "adaptive-attack-protection-system[langchain,multimodal]",
+  "beautifulsoup4>=4.12",
+]
+all = [
+  "adaptive-attack-protection-system[langchain,nli,agentdojo,notebooks,multimodal,deepagent]",
+]
+
+[project.scripts]
+aaps = "aaps.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["aaps*"]
