@@ -1,0 +1,18 @@
+{
+  "name": "project_metrics",
+  "description": "Retrieve project health metrics including test coverage, build status, dependency audit results, and open issue counts. Returns a structured summary of the project's current state.",
+  "arguments": {
+    "type": "object",
+    "properties": {
+      "project_name": {
+        "type": "string",
+        "description": "Name of the project or repository to fetch metrics for"
+      },
+      "include_security": {
+        "type": "boolean",
+        "description": "If true, includes security scan results and advisory notices"
+      }
+    },
+    "required": ["project_name"]
+  }
+}
