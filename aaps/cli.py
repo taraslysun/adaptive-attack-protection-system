@@ -84,15 +84,59 @@ def cmd_run_attack(args: argparse.Namespace) -> int:
 
 
 def cmd_run_bench(args: argparse.Namespace) -> int:
-    print(json.dumps({
+    """Load scenarios for the chosen benchmark and report shape.
+
+    Real defence/attack execution happens in scripts/run_thesis_experiments.py;
+    this command is a deterministic, network-free smoke that verifies the
+    benchmark adapter loads and returns a non-empty scenario list (when the
+    backing dataset is available).
+    """
+    from pathlib import Path
+
+    out: dict = {
         "benchmark": args.benchmark,
         "suite": args.suite,
         "limit": args.limit,
         "defense": args.defense,
         "victim": args.victim,
-        "note": "stub — wire to aaps.evaluation.external_benchmarks for real runs.",
-    }, indent=2))
-    return 0
+    }
+
+    if args.benchmark == "agentdojo":
+        try:
+            from aaps.evaluation.external_benchmarks import load_agentdojo_scenarios
+            scenarios = load_agentdojo_scenarios(
+                suites=[args.suite],
+                user_limit=args.limit,
+                injection_limit=2,
+            )
+            out["scenarios_loaded"] = len(scenarios)
+            out["sample_names"] = [s.name for s in scenarios[:3]]
+        except ImportError as e:
+            out["scenarios_loaded"] = 0
+            out["error"] = f"agentdojo not installed: {e}"
+
+    elif args.benchmark == "injecagent":
+        try:
+            from aaps.evaluation.external_benchmarks import load_injecagent_scenarios
+            scenarios = load_injecagent_scenarios(
+                splits=("dh_base",),
+                limit_per_split=args.limit,
+            )
+            out["scenarios_loaded"] = len(scenarios)
+            out["sample_names"] = [s.name for s in scenarios[:3]]
+        except (ImportError, FileNotFoundError) as e:
+            out["scenarios_loaded"] = 0
+            out["error"] = str(e)
+
+    elif args.benchmark in ("harmbench", "tau-bench"):
+        out["scenarios_loaded"] = 0
+        out["note"] = (
+            f"{args.benchmark} adapter is in scripts/run_thesis_experiments.py; "
+            "CLI wiring deferred to 0.2.x."
+        )
+
+    print(json.dumps(out, indent=2))
+    return 0 if out.get("scenarios_loaded", 0) > 0 or "note" in out else 1
 
 
 def main(argv: list[str] | None = None) -> int:

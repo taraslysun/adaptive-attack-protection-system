@@ -60,3 +60,12 @@ aaps = "aaps.cli:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["aaps*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "ollama: requires Ollama running locally; opt-in",
+  "services: requires docker services (qdrant/sandbox/litellm); opt-in",
+  "remote: requires paid API keys; opt-in via RUN_REMOTE_E2E=1",
+]
+addopts = "-m 'not ollama and not services and not remote'"
