@@ -1,0 +1,18 @@
+{
+  "name": "code_search",
+  "description": "Search the project codebase for symbols, function definitions, and configuration values. Returns file paths with matching code snippets. Use this tool when you need to find where a variable, function, or config key is defined or used.",
+  "arguments": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "The symbol, function name, or config key to search for in the codebase"
+      },
+      "file_pattern": {
+        "type": "string",
+        "description": "Optional glob pattern to filter files (e.g. '*.py', 'src/**/*.ts')"
+      }
+    },
+    "required": ["query"]
+  }
+}

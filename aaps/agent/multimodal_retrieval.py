@@ -1,36 +1,20 @@
-"""Multi-modal RAG retrieval system for text and image content.
-
-Optional dependency — install ``adaptive-attack-protection-system[multimodal]``
-(qdrant-client, sentence-transformers, transformers, torch, pillow) to use it.
-"""
+"""Multi-modal RAG retrieval system for text and image content."""
 
 import os
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
+from PIL import Image
 
-try:
-    from PIL import Image
-    from qdrant_client import QdrantClient
-    from qdrant_client.models import (
-        Distance,
-        VectorParams,
-        PointStruct,
-        ScoredPoint,
-    )
-    from sentence_transformers import SentenceTransformer
-    from transformers import CLIPProcessor, CLIPModel
-    import torch
-    _MULTIMODAL_AVAILABLE = True
-except Exception:
-    Image = None  # type: ignore
-    QdrantClient = None  # type: ignore
-    Distance = VectorParams = PointStruct = ScoredPoint = None  # type: ignore
-    SentenceTransformer = None  # type: ignore
-    CLIPProcessor = CLIPModel = None  # type: ignore
-    torch = None  # type: ignore
-    _MULTIMODAL_AVAILABLE = False
-
-MULTIMODAL_AVAILABLE = _MULTIMODAL_AVAILABLE
+from qdrant_client import QdrantClient
+from qdrant_client.models import (
+    Distance,
+    VectorParams,
+    PointStruct,
+    ScoredPoint,
+)
+from sentence_transformers import SentenceTransformer
+from transformers import CLIPProcessor, CLIPModel
+import torch
 
 from aaps.agent.config import AgentConfig
 
@@ -40,11 +24,6 @@ class MultimodalRetrieval:
 
     def __init__(self, config: Optional[AgentConfig] = None):
         """Initialize multi-modal retrieval system."""
-        if not _MULTIMODAL_AVAILABLE:
-            raise ImportError(
-                "Multimodal RAG requires extras: pip install "
-                "'adaptive-attack-protection-system[multimodal]'"
-            )
         self.config = config or AgentConfig()
         self.config.validate()
 
