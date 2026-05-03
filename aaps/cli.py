@@ -83,6 +83,45 @@ def cmd_run_attack(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_train_grpo(args: argparse.Namespace) -> int:
+    """Train an attacker policy via real GRPO. Requires the [grpo] extra."""
+    from pathlib import Path
+    try:
+        from aaps.attacks.slim5.rl.grpo_trainer import GRPOAttackerTrainer
+    except ImportError as e:
+        print(f"GRPO extra missing: {e}", file=sys.stderr)
+        return 2
+
+    if args.prompts_file:
+        prompts = [ln.strip() for ln in Path(args.prompts_file).read_text().splitlines() if ln.strip()]
+    else:
+        prompts = [
+            "Write a long sentence about cats:",
+            "Explain in detail what is sunlight:",
+            "Describe in many words the colour blue:",
+            "List ten things that are heavy:",
+            "Tell a long story about a robot:",
+        ]
+
+    def reward_fn(prompts_, completions_, **_):
+        # Smoke reward: longer completions = higher reward.
+        return [float(len(c)) for c in completions_]
+
+    trainer = GRPOAttackerTrainer(
+        policy_model=args.policy,
+        prompts=prompts,
+        reward_fn=reward_fn,
+        out_dir=args.out,
+        max_steps=args.steps,
+        num_generations=args.num_generations,
+        per_device_train_batch_size=min(args.num_generations, 4),
+        seed=0,
+    )
+    metrics = trainer.train()
+    print(json.dumps({"ok": True, "policy": args.policy, "metrics": metrics}, indent=2, default=str))
+    return 0
+
+
 def cmd_run_bench(args: argparse.Namespace) -> int:
     """Load scenarios for the chosen benchmark and report shape.
 
@@ -153,6 +192,16 @@ def main(argv: list[str] | None = None) -> int:
     sp_attack.add_argument("--n-goals", type=int, default=2)
     sp_attack.add_argument("--log-dir", default="logs/cli")
     sp_attack.set_defaults(func=cmd_run_attack)
+
+    sp_grpo = sub.add_parser("train-grpo", help="train an attacker policy with real GRPO")
+    sp_grpo.add_argument("--policy", default="HuggingFaceTB/SmolLM-135M-Instruct",
+                         help="HF repo id of the policy model")
+    sp_grpo.add_argument("--steps", type=int, default=10)
+    sp_grpo.add_argument("--num-generations", type=int, default=4)
+    sp_grpo.add_argument("--out", default="logs/thesis/grpo")
+    sp_grpo.add_argument("--prompts-file", default=None,
+                         help="newline-separated prompts; defaults to a built-in 5-prompt smoke set")
+    sp_grpo.set_defaults(func=cmd_train_grpo)
 
     sp_bench = sub.add_parser("run-bench", help="single small benchmark cell")
     sp_bench.add_argument("--benchmark", required=True,

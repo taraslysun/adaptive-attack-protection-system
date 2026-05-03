@@ -79,5 +79,7 @@ markers = [
   "ollama: requires Ollama running locally; opt-in",
   "services: requires docker services (qdrant/sandbox/litellm); opt-in",
   "remote: requires paid API keys; opt-in via RUN_REMOTE_E2E=1",
+  "grpo: requires [grpo] extra; loads a tiny model and runs real training",
+  "notebooks: opt-in; runs every notebook headlessly via nbconvert",
 ]
-addopts = "-m 'not ollama and not services and not remote'"
+addopts = "-m 'not ollama and not services and not remote and not grpo and not notebooks'"

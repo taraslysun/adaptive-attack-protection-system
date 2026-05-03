@@ -38,11 +38,25 @@ from aaps.attacks.slim5.rl.reward import RewardFunction, DefenseSpecificReward
 
 
 class RLAttack(BaseAttack):
-    """RL-based adaptive attack with GRPO-style group-relative selection.
+    """RL adaptive attack. Two execution modes.
 
-    Per the paper: the attacker LLM interacts with the defended system,
-    observes outputs and scores, and refines its strategy. GRPO updates
-    the attacker policy across sessions using group-relative preferences.
+    ``mode="elite_selection"`` (default, CPU-only safe):
+        Iterative-prompt loop. The attacker LLM proposes candidates,
+        observes scores, and the top scorers seed the next round. No
+        gradient. This is the mode that runs in notebook smoke tests
+        and in the headline matrix when no GPU is available.
+
+    ``mode="grpo_real"``:
+        Real GRPO via :class:`aaps.attacks.slim5.rl.grpo_trainer.GRPOAttackerTrainer`
+        which wraps TRL's :class:`trl.GRPOTrainer` (Shao 2024 DeepSeekMath,
+        arXiv:2402.03300; DeepSeek-R1, arXiv:2501.12948 §3). Group-relative
+        advantage, KL term against a frozen reference model, and PPO-clipped
+        policy ratios. Requires the ``[grpo]`` extra. Default policy is
+        ``HuggingFaceTB/SmolLM-135M-Instruct`` for CPU smoke; thesis-grade
+        runs swap to ``Qwen/Qwen2.5-0.5B-Instruct`` or larger on GPU.
+
+    The legacy ``use_weight_updates`` boolean is retained as a deprecated
+    alias for ``mode="grpo_real"`` and emits a warning.
     """
 
     def __init__(
@@ -60,6 +74,10 @@ class RLAttack(BaseAttack):
         policy_model: Optional[str] = None,
         use_litellm: bool = USE_LITELLM,
         litellm_model: Optional[str] = None,
+        mode: str = "elite_selection",
+        grpo_max_steps: int = 50,
+        grpo_num_generations: int = 4,
+        grpo_out_dir: Optional[str] = None,
     ):
         budget = num_sessions * rounds_per_session * num_candidates_per_round
         cfg = config or AttackConfig(budget=budget)
@@ -71,8 +89,24 @@ class RLAttack(BaseAttack):
         self.ollama_url = OLLAMA_URL
         self.score_fn = score_fn
         self.defense_type = defense_type
-        self.use_weight_updates = use_weight_updates
-        self.policy_model_name = policy_model
+        # Resolve mode. Legacy `use_weight_updates=True` maps to grpo_real.
+        if use_weight_updates and mode == "elite_selection":
+            import warnings
+            warnings.warn(
+                "RLAttack: use_weight_updates=True is deprecated; "
+                "pass mode='grpo_real' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            mode = "grpo_real"
+        if mode not in ("elite_selection", "grpo_real"):
+            raise ValueError(f"unknown mode {mode!r}")
+        self.mode = mode
+        self.use_weight_updates = (mode == "grpo_real")  # backward-compat alias
+        self.policy_model_name = policy_model or "HuggingFaceTB/SmolLM-135M-Instruct"
+        self.grpo_max_steps = grpo_max_steps
+        self.grpo_num_generations = grpo_num_generations
+        self.grpo_out_dir = grpo_out_dir
         self.use_litellm = use_litellm
         self.litellm_model = litellm_model or LITELLM_ATTACKER_MODEL
 
@@ -85,6 +119,7 @@ class RLAttack(BaseAttack):
 
         self._policy = None
         self._policy_optimizer = None
+        self._grpo_trainer = None  # lazy: aaps.attacks.slim5.rl.grpo_trainer.GRPOAttackerTrainer
         self._fallback_count: int = 0
 
     _FALLBACK_TEMPLATES = [
@@ -404,11 +439,74 @@ class RLAttack(BaseAttack):
             session_data = self._all_attempts[session_start:session_end]
             self._session_groups.append(session_data)
 
-            if self.use_weight_updates and len(self._session_groups) >= 2:
+            if self.mode == "grpo_real" and len(self._session_groups) >= 1:
+                self._grpo_real_update()
+            elif self.use_weight_updates and len(self._session_groups) >= 2:
+                # legacy hand-rolled path; kept for reproducibility of older logs
                 self._grpo_weight_update()
 
     # ------------------------------------------------------------------
-    # GRPO weight update (mode B) -- RESEARCH PROTOTYPE
+    # Real GRPO update (TRL backend)
+    # ------------------------------------------------------------------
+    def _grpo_real_update(self):
+        """Train the policy via TRL's GRPOTrainer using the latest
+        session's (trigger, score) pairs as the reward signal.
+        """
+        from pathlib import Path
+        from aaps.attacks.slim5.rl.grpo_trainer import GRPOAttackerTrainer
+
+        if not self._session_groups:
+            return
+        latest = self._session_groups[-1]
+        if not latest:
+            return
+
+        prompts = [att["trigger"] for att in latest]
+        rewards_lookup = {att["trigger"]: float(att["score"]) for att in latest}
+
+        def _reward_fn(prompts_, completions_, **_kw):
+            # Reward each completion by the score we previously saw on the
+            # matching trigger; unknown completions get the average. This
+            # is the simplest honest mapping from session telemetry to a
+            # GRPO reward signal — production runs should swap in a live
+            # judge call.
+            mean = sum(rewards_lookup.values()) / max(len(rewards_lookup), 1)
+            out: list[float] = []
+            for p in prompts_:
+                out.append(rewards_lookup.get(p, mean))
+            return out
+
+        out_dir = self.grpo_out_dir or str(
+            Path("logs/thesis/grpo") / f"iter_{len(self._session_groups)}"
+        )
+        if self._grpo_trainer is None:
+            self._grpo_trainer = GRPOAttackerTrainer(
+                policy_model=self.policy_model_name,
+                prompts=prompts,
+                reward_fn=_reward_fn,
+                out_dir=out_dir,
+                max_steps=self.grpo_max_steps,
+                num_generations=self.grpo_num_generations,
+                per_device_train_batch_size=min(self.grpo_num_generations, 4),
+                seed=0,
+            )
+        else:
+            # Future: swap dataset + reward in-place. For now construct a
+            # fresh trainer per session (simpler, deterministic).
+            self._grpo_trainer = GRPOAttackerTrainer(
+                policy_model=self.policy_model_name,
+                prompts=prompts,
+                reward_fn=_reward_fn,
+                out_dir=out_dir,
+                max_steps=self.grpo_max_steps,
+                num_generations=self.grpo_num_generations,
+                per_device_train_batch_size=min(self.grpo_num_generations, 4),
+                seed=0,
+            )
+        self._grpo_trainer.train()
+
+    # ------------------------------------------------------------------
+    # GRPO weight update (LEGACY mode B) — RESEARCH PROTOTYPE
     # ------------------------------------------------------------------
     def _grpo_weight_update(self):
         """Apply a pairwise preference loss across sessions.
