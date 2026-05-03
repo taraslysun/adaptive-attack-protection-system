@@ -83,6 +83,27 @@ def cmd_run_attack(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_system_check(args: argparse.Namespace) -> int:
+    """Delegate to aaps.scripts.system_check.main."""
+    from aaps.scripts.system_check import main as _main
+    argv = []
+    if args.json:
+        argv.append("--json")
+    if args.quick:
+        argv.append("--quick")
+    return _main() if not argv else _run_with_argv(_main, argv)
+
+
+def _run_with_argv(fn, argv):
+    import sys as _sys
+    saved = _sys.argv
+    _sys.argv = ["system-check", *argv]
+    try:
+        return fn()
+    finally:
+        _sys.argv = saved
+
+
 def cmd_train_grpo(args: argparse.Namespace) -> int:
     """Train an attacker policy via real GRPO. Requires the [grpo] extra."""
     from pathlib import Path
@@ -192,6 +213,11 @@ def main(argv: list[str] | None = None) -> int:
     sp_attack.add_argument("--n-goals", type=int, default=2)
     sp_attack.add_argument("--log-dir", default="logs/cli")
     sp_attack.set_defaults(func=cmd_run_attack)
+
+    sp_sc = sub.add_parser("system-check", help="one-shot system check dashboard")
+    sp_sc.add_argument("--json", action="store_true")
+    sp_sc.add_argument("--quick", action="store_true")
+    sp_sc.set_defaults(func=cmd_system_check)
 
     sp_grpo = sub.add_parser("train-grpo", help="train an attacker policy with real GRPO")
     sp_grpo.add_argument("--policy", default="HuggingFaceTB/SmolLM-135M-Instruct",
