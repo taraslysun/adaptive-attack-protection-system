@@ -79,6 +79,23 @@ try:
 except Exception:
     SecAlignDefense = None
 
+try:
+    from aaps.defenses.baselines.llama_guard import LlamaGuardDefense
+except Exception:
+    LlamaGuardDefense = None
+
+try:
+    from aaps.defenses.baselines.granite_guardian import GraniteGuardianDefense
+except Exception:
+    GraniteGuardianDefense = None
+
+try:
+    from aaps.defenses.baselines.constitutional_classifiers import (
+        ConstitutionalClassifiersDefense,
+    )
+except Exception:
+    ConstitutionalClassifiersDefense = None
+
 __all__ = [
     "Spotlighting",
     "PromptSandwiching",
@@ -95,4 +112,8 @@ __all__ = [
     "MELONDefense",
     "SmoothLLMDefense",
     "SecAlignDefense",
+    # Phase C 2026-05-02: complete the paper-headline 14
+    "LlamaGuardDefense",
+    "GraniteGuardianDefense",
+    "ConstitutionalClassifiersDefense",
 ]
