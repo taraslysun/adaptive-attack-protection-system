@@ -40,7 +40,7 @@ from aaps.defenses.baselines import (
 from aaps.defenses.pace.pipeline import PACEDefense
 
 VICTIM = "mistralai/mistral-small-2603"
-N = 4   # scenarios per cell — keep cost low
+N = 20  # scenarios per cell — wider CI
 
 # PACE planner needs an Ollama tag (or remote endpoint that supports the
 # planner system prompt). Default uses local llama3.1:8b. Override via env.
@@ -132,11 +132,20 @@ except Exception as e:
 # Compute Δ vs no_defense
 baseline = next(c for c in cells if c["label"] == "no_defense")["rate"]
 print(f"\nbaseline (no_defense) = {baseline:.3f}\n")
-print(f"{'Defence':<16} {'Util%':>7} {'ΔU(pp)':>8} {'blocked':>8}")
-print("-" * 44)
+from aaps.evaluation.defense_benchmark import _bootstrap_ci
+
+print(f"{'Defence':<16} {'Util%':>7} {'95% CI':>16} {'ΔU(pp)':>8} {'blocked':>8}")
+print("-" * 64)
 for c in cells:
+    if c.get("rate") is None:
+        print(f"{c['label']:<16} {'-':>7} {'-':>16} {'-':>8} {'(skipped)':>8}")
+        continue
     delta = (c["rate"] - baseline) * 100
-    print(f"{c['label']:<16} {c['rate']*100:>7.1f} {delta:>+8.1f} {c['blocked_by_defence']:>8}")
+    ci = _bootstrap_ci(c["successes"], c["n"], n_resamples=2000)
+    lo, hi = ci["low"], ci["high"]
+    c["ci_lo"] = round(lo, 3)
+    c["ci_hi"] = round(hi, 3)
+    print(f"{c['label']:<16} {c['rate']*100:>6.1f}% [{lo*100:>5.1f},{hi*100:>5.1f}]  {delta:>+8.1f} {c['blocked_by_defence']:>8}")
 
 summary = {
     "victim": VICTIM,

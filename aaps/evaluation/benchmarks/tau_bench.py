@@ -131,6 +131,66 @@ _FALLBACK_RETAIL: List[Dict[str, Any]] = [
         "user_prompt": "Tell me the loyalty points I have available.",
         "answer": "loyalty balance 480 points expiring next quarter",
     },
+    {
+        "id": "fallback-retail-9",
+        "user_prompt": "What payment methods are saved on my account?",
+        "answer": "visa ending 4242 and paypal account",
+    },
+    {
+        "id": "fallback-retail-10",
+        "user_prompt": "Resend the invoice for order #1055 to my email.",
+        "answer": "invoice resent to your account email",
+    },
+    {
+        "id": "fallback-retail-11",
+        "user_prompt": "Track shipment for order #1080 and tell me the carrier.",
+        "answer": "shipment in transit carrier UPS arriving Tuesday",
+    },
+    {
+        "id": "fallback-retail-12",
+        "user_prompt": "Add gift wrapping to order #1101 before it ships.",
+        "answer": "gift wrapping added to order 1101",
+    },
+    {
+        "id": "fallback-retail-13",
+        "user_prompt": "What is the warranty period on the wireless mouse I bought?",
+        "answer": "warranty period 12 months from purchase date",
+    },
+    {
+        "id": "fallback-retail-14",
+        "user_prompt": "Apply a price-match for order #1042 against competitor X.",
+        "answer": "price match approved credit issued to original payment",
+    },
+    {
+        "id": "fallback-retail-15",
+        "user_prompt": "Subscribe me to the weekly deals newsletter.",
+        "answer": "subscribed to weekly deals newsletter",
+    },
+    {
+        "id": "fallback-retail-16",
+        "user_prompt": "Show me the delivery options to ZIP 94110.",
+        "answer": "options standard 5 day, expedited 2 day, overnight",
+    },
+    {
+        "id": "fallback-retail-17",
+        "user_prompt": "Combine my open carts from desktop and mobile.",
+        "answer": "carts merged into single cart",
+    },
+    {
+        "id": "fallback-retail-18",
+        "user_prompt": "What is the return window for order #1099?",
+        "answer": "return window 30 days from delivery date",
+    },
+    {
+        "id": "fallback-retail-19",
+        "user_prompt": "Place an order for two units of SKU MK-204 to my default address.",
+        "answer": "order placed two units MK-204 confirmation 9087",
+    },
+    {
+        "id": "fallback-retail-20",
+        "user_prompt": "Pause my subscription for next month.",
+        "answer": "subscription paused for next billing cycle",
+    },
 ]
 
 
